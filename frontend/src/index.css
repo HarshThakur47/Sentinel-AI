@@ -528,6 +528,87 @@ body {
 .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
 .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
 
+/* ── Pipeline Step Tracker ─────────────────────────────── */
+
+.pipeline-tracker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.pipeline-step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.pipeline-step.pending {
+  color: var(--text-secondary);
+  opacity: 0.4;
+}
+
+.pipeline-step.active {
+  color: var(--primary-color);
+  background: rgba(239, 68, 68, 0.08);
+  opacity: 1;
+  font-weight: 600;
+}
+
+.pipeline-step.complete {
+  color: var(--success-color);
+  opacity: 0.9;
+}
+
+.step-icon-wrapper {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.pipeline-step.pending .step-icon-wrapper {
+  background: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.pipeline-step.active .step-icon-wrapper {
+  background: var(--primary-color);
+  color: white;
+  animation: pulse-step 1.5s infinite;
+}
+
+.pipeline-step.complete .step-icon-wrapper {
+  background: var(--success-color);
+  color: white;
+}
+
+.step-label {
+  white-space: nowrap;
+}
+
+@keyframes pulse-step {
+  0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70%  { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.loading-text {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 0.25rem;
+}
+
 .animate-fade-in-scale {
   animation: fadeInScale 0.5s ease-out forwards;
 }
