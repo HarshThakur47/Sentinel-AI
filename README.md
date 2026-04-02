@@ -145,4 +145,3 @@ For queries or collaborations, feel free to reach out.
 
 ---
 
-# Sentinel-AI
