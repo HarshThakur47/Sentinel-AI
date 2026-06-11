@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, CheckCircle, Search, Filter, Sparkles, ShieldCheck } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import SourceBadge from './SourceBadge';
 
 const API_BASE = 'http://localhost:5000/api/v1';
@@ -27,7 +28,6 @@ const ChatInterface = () => {
     scrollToBottom();
   }, [messages, isLoading, pipelineStep]);
 
-  // ── SSE-based streaming query ────────────────────────────
   const queryWithSSE = (userQuery) => {
     return new Promise((resolve, reject) => {
       const controller = new AbortController();
@@ -78,7 +78,7 @@ const ChatInterface = () => {
                       return;
                     }
                   } catch {
-                    // skip malformed JSON lines
+
                   }
                 }
               }
@@ -91,7 +91,7 @@ const ChatInterface = () => {
     });
   };
 
-  // ── Standard fetch fallback ──────────────────────────────
+
   const queryWithFetch = async (userQuery) => {
     const response = await fetch(`${API_BASE}/query`, {
       method: 'POST',
@@ -115,7 +115,7 @@ const ChatInterface = () => {
     setStepMessage('');
 
     try {
-      // Try SSE first, fall back to standard fetch
+
       let data;
       try {
         data = await queryWithSSE(userQuery);
@@ -145,7 +145,7 @@ const ChatInterface = () => {
     }
   };
 
-  // ── Determine which step index is active ─────────────────
+
   const activeStepIndex = PIPELINE_STEPS.findIndex((s) => s.key === pipelineStep);
 
   return (
@@ -169,7 +169,13 @@ const ChatInterface = () => {
             </div>
 
             <div className="message-content">
-              <div className="text-content">{msg.content}</div>
+              {msg.role === 'bot' ? (
+                <div className="text-content markdown-body">
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
+              ) : (
+                <div className="text-content">{msg.content}</div>
+              )}
 
               {msg.role === 'bot' && msg.status === 'success' && (
                 <div className="message-metadata animate-fade-in" style={{ animationDelay: '0.3s' }}>
@@ -178,16 +184,19 @@ const ChatInterface = () => {
                     <span>Evaluator Score: <strong>{msg.score}/10</strong></span>
                   </div>
 
-                  {msg.sources && msg.sources.length > 0 && (
-                    <div className="sources-container">
-                      <p className="sources-label">Verified Sources:</p>
-                      <div className="sources-list">
-                        {msg.sources.map((src, i) => (
-                          <SourceBadge key={i} source={src} index={i} />
-                        ))}
+                  {msg.sources && msg.sources.length > 0 && (() => {
+                    const uniqueSources = Array.from(new Map(msg.sources.map(s => [s.title, s])).values());
+                    return (
+                      <div className="sources-container">
+                        <p className="sources-label">Verified Sources:</p>
+                        <div className="sources-list">
+                          {uniqueSources.map((src, i) => (
+                            <SourceBadge key={i} source={src} index={i} />
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -199,7 +208,7 @@ const ChatInterface = () => {
             <div className="message-avatar"><Bot size={20} /></div>
             <div className="message-content">
 
-              {/* ── Pipeline Step Tracker ─────────────────── */}
+             
               <div className="pipeline-tracker">
                 {PIPELINE_STEPS.map((step, i) => {
                   const StepIcon = step.icon;

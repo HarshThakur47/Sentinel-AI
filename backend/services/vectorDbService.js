@@ -18,37 +18,34 @@ const {
   PINECONE_API_KEY,
   PINECONE_INDEX_NAME,
   PINECONE_ENVIRONMENT,
+  PINECONE_HOST,
   OPENAI_API_KEY,
+  GEMINI_API_KEY,
   EMBEDDING_MODEL,
 } = require('../config/config');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { v4: uuidv4 } = require('uuid');
+
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY || '');
 
 // ─── Embedding ────────────────────────────────────────────────────────────────
 
 /**
- * Generate an embedding vector for the given text using OpenAI API.
+ * Generate an embedding vector for the given text using Gemini API.
  *
  * @param {string} text
  * @returns {Promise<number[]>}
  */
 async function generateEmbedding(text) {
-  if (!OPENAI_API_KEY) {
-    logger.warn('[VectorDB] OpenAI key not set — using zero-vector mock embedding.');
-    return new Array(1536).fill(0); // text-embedding-3-small dimension
+  if (!GEMINI_API_KEY) {
+    logger.warn('[VectorDB] Gemini key not set — using zero-vector mock embedding.');
+    return new Array(768).fill(0); // gemini-embedding-2 dimension
   }
 
   try {
-    const { data } = await axios.post(
-      'https://api.openai.com/v1/embeddings',
-      { input: text, model: EMBEDDING_MODEL },
-      {
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 15_000,
-      }
-    );
-    return data.data[0].embedding;
+    const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL || 'gemini-embedding-2' });
+    const result = await model.embedContent(text);
+    return result.embedding.values;
   } catch (err) {
     logger.error('[VectorDB] Embedding generation failed', { error: err.message });
     throw new Error(`Embedding generation failed: ${err.message}`);
@@ -65,8 +62,8 @@ async function generateEmbedding(text) {
  * @returns {Promise<Object[]>}  – [{id, title, content, score}]
  */
 async function searchPinecone(vector, topK = 5) {
-  // Pinecone REST API v1 endpoint format
-  const host = `https://${PINECONE_INDEX_NAME}-${PINECONE_ENVIRONMENT}.svc.pinecone.io`;
+  // Pinecone REST API endpoint format
+  const host = PINECONE_HOST || `https://${PINECONE_INDEX_NAME}-${PINECONE_ENVIRONMENT}.svc.pinecone.io`;
 
   try {
     const { data } = await axios.post(
@@ -192,7 +189,7 @@ function getMockDocuments(userQuery) {
 
 // ─── Public Interface ─────────────────────────────────────────────────────────
 
-const isPineconeConfigured = Boolean(PINECONE_API_KEY && PINECONE_INDEX_NAME && OPENAI_API_KEY);
+const isPineconeConfigured = Boolean(PINECONE_API_KEY && PINECONE_INDEX_NAME && GEMINI_API_KEY);
 
 /**
  * Retrieve top-k relevant documents from the vector store.
@@ -203,7 +200,7 @@ const isPineconeConfigured = Boolean(PINECONE_API_KEY && PINECONE_INDEX_NAME && 
  */
 async function retrieveDocuments(userQuery, topK = 5) {
   if (!isPineconeConfigured) {
-    logger.warn('[VectorDB] Running in MOCK mode — Pinecone/OpenAI keys not set.');
+    logger.warn('[VectorDB] Running in MOCK mode — Pinecone/Gemini keys not set.');
     const mockDocs = getMockDocuments(userQuery);
     logger.info(`[VectorDB] Mock retrieved ${mockDocs.length} documents.`);
     return mockDocs;
@@ -219,4 +216,52 @@ async function retrieveDocuments(userQuery, topK = 5) {
   return docs;
 }
 
-module.exports = { retrieveDocuments, generateEmbedding };
+/**
+ * Upsert document chunks into Pinecone
+ *
+ * @param {string[]} chunks
+ * @param {string} sourceFilename
+ */
+async function upsertDocuments(chunks, sourceFilename) {
+  if (!isPineconeConfigured) {
+    logger.warn('[VectorDB] Mock mode: skipping Pinecone upsert.');
+    return;
+  }
+  
+  const host = PINECONE_HOST || `https://${PINECONE_INDEX_NAME}-${PINECONE_ENVIRONMENT}.svc.pinecone.io`;
+  
+  const vectors = [];
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const embedding = await generateEmbedding(chunk);
+    vectors.push({
+      id: uuidv4(),
+      values: embedding,
+      metadata: {
+        title: sourceFilename,
+        content: chunk,
+        pageNumber: i + 1, // rough approximation
+      }
+    });
+  }
+  
+  try {
+    await axios.post(
+      `${host}/vectors/upsert`,
+      { vectors },
+      {
+        headers: {
+          'Api-Key': PINECONE_API_KEY,
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000,
+      }
+    );
+    logger.info(`[VectorDB] Upserted ${vectors.length} vectors to Pinecone for ${sourceFilename}.`);
+  } catch (err) {
+    logger.error('[VectorDB] Pinecone upsert failed', { error: err.message });
+    throw new Error(`Pinecone upsert failed: ${err.message}`);
+  }
+}
+
+module.exports = { retrieveDocuments, generateEmbedding, upsertDocuments };
