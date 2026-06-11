@@ -3,7 +3,7 @@ import { Send, Bot, User, CheckCircle, Search, Filter, Sparkles, ShieldCheck } f
 import ReactMarkdown from 'react-markdown';
 import SourceBadge from './SourceBadge';
 
-const API_BASE = 'http://localhost:5000/api/v1';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 
 const PIPELINE_STEPS = [
   { key: 'searching',  label: 'Searching Documents',  icon: Search },
