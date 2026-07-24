@@ -56,19 +56,21 @@ backend/
 │   └── config.js              # Central config from env
 │
 ├── routes/
-│   └── queryRoutes.js         # /api/v1/query, /stream, /health
+│   ├── queryRoutes.js         # Query routes (/api/v1/query, /stream, /health)
+│   └── documentRoutes.js      # Ingestion route (/api/v1/documents/upload)
 │
 ├── controllers/
-│   └── queryController.js     # Request handlers + SSE
+│   ├── queryController.js     # Query request handlers + SSE
+│   └── documentController.js  # Ingestion multipart upload controller
 │
 ├── services/
 │   ├── ragPipelineService.js  # Orchestrates the 4-step pipeline
-│   └── vectorDbService.js     # Pinecone + embeddings + mock
+│   └── vectorDbService.js     # Pinecone + embeddings + concurrency helper
 │
 ├── agents/
-│   ├── filterAgent.js         # Tier 1 — Llama 3.1 8B
-│   ├── generatorAgent.js      # Tier 2 — Claude Sonnet
-│   └── evaluatorAgent.js      # Tier 3 — Gemini 1.5 Pro
+│   ├── filterAgent.js         # Tier 1 — Llama 3.3 70B
+│   ├── generatorAgent.js      # Tier 2 — Claude 3 Haiku
+│   └── evaluatorAgent.js      # Tier 3 — Gemini 2.0 Flash
 │
 ├── middleware/
 │   ├── errorHandler.js        # Global error handler
@@ -80,7 +82,8 @@ backend/
 │   └── AppError.js            # Custom error class
 │
 ├── tests/
-│   └── test-pipeline.js       # Integration tests
+│   ├── test-pipeline.js       # Query integration tests
+│   └── test-ingestion.js      # Ingestion performance profiling tests
 │
 └── logs/                      # Auto-created log files
 ```
@@ -204,6 +207,28 @@ Server-Sent Events (SSE) streaming. Same request body.
 
 ---
 
+### `POST /api/v1/documents/upload`
+
+Uploads one or multiple PDF documents, segments them into chunks, embeds them concurrently (or sequentially), and upserts them to Pinecone.
+
+- **Payload**: Multipart Form-Data
+- **Fields**:
+  - `documents` (File[]): PDF file attachments.
+  - `parallel` (string): `"true"` (concurrency limit: 10) or `"false"`.
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Successfully processed and ingested 1 document(s).",
+  "results": [
+    { "filename": "medical-ref.pdf", "chunksGenerated": 15, "status": "success" }
+  ]
+}
+```
+
+---
+
 ## 🔑 Environment Variables
 
 | Variable                  | Required | Default                                 | Description                      |
@@ -245,6 +270,21 @@ This lets you demo and develop the full pipeline without any external dependenci
 - **Input Validation** — Query length limits, type checks
 - **Error Sanitization** — No stack traces in production
 - **Request Logging** — Morgan + Winston with file output
+
+---
+
+## 🧪 Testing
+
+The backend includes test scripts to verify the RAG query pipeline and profiling the document ingestion speed.
+
+- **Pipeline Test** (Runs query pipelines in mock mode):
+  ```bash
+  npm test
+  ```
+- **Ingestion Profiling Test** (Profiles sequential vs parallel embedding upserts):
+  ```bash
+  node tests/test-ingestion.js
+  ```
 
 ---
 

@@ -15,7 +15,7 @@ const upload = multer({
 });
 
 // POST /api/v1/documents/upload
-// Expects form-data with key "document" containing the PDF file.
-router.post('/upload', upload.single('document'), handleDocumentUpload);
+// Expects form-data with key "documents" (or any key) containing PDF files.
+router.post('/upload', upload.any(), handleDocumentUpload);
 
 module.exports = router;

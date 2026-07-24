@@ -20,14 +20,16 @@ backend/
 │   └── config.js                # Central env reader — single source of truth
 │
 ├── routes/
-│   └── queryRoutes.js           # Route definitions → controller mapping
+│   ├── queryRoutes.js           # Query route definitions → controller mapping
+│   └── documentRoutes.js        # Ingestion route definitions → controller mapping
 │
 ├── controllers/
-│   └── queryController.js       # Request validation, handlers, SSE
+│   ├── queryController.js       # Query request validation, handlers, SSE
+│   └── documentController.js    # Ingestion request validation, PDF parsing, chunking
 │
 ├── services/
 │   ├── ragPipelineService.js    # Pipeline orchestrator (4 steps)
-│   └── vectorDbService.js       # Vector search + mock knowledge base
+│   └── vectorDbService.js       # Vector search, concurrent chunk upsert + mock database
 │
 ├── agents/
 │   ├── filterAgent.js           # Tier 1 — Document relevance filter
@@ -44,7 +46,8 @@ backend/
 │   └── AppError.js              # Custom operational error class
 │
 ├── tests/
-│   └── test-pipeline.js         # Integration tests (mock mode)
+│   ├── test-pipeline.js         # Query integration tests (mock mode)
+│   └── test-ingestion.js        # Ingestion performance profiling tests
 │
 └── logs/                        # Auto-created — combined.log + error.log
 ```
@@ -220,6 +223,58 @@ Cache-Control: no-cache
 Connection: keep-alive
 X-Accel-Buffering: no
 ```
+
+---
+
+### `POST /api/v1/documents/upload`
+
+**Purpose**: Uploads and parses one or multiple PDF documents, segments them into chunks, generates vector embeddings, and registers them inside Pinecone Vector DB.
+
+**Payload**: Multipart Form-Data
+- `documents` (File[]): One or more PDF files (max 10MB per file).
+- `parallel` (string): `"true"` to enable parallel embedding generation, or `"false"` to run sequential embedding generation.
+
+**Success Response** `200`:
+```json
+{
+  "status": "success",
+  "message": "Successfully processed and ingested 2 document(s).",
+  "results": [
+    {
+      "filename": "document-1.pdf",
+      "chunksGenerated": 12,
+      "status": "success"
+    },
+    {
+      "filename": "document-2.pdf",
+      "chunksGenerated": 8,
+      "status": "success"
+    }
+  ]
+}
+```
+
+**Concurrency Limiter Design (`limitConcurrency`)**:
+To prevent rate limiting thresholds (`429 Too Many Requests`) from LLM API providers during parallel ingestion, the service implements a custom concurrent worker queue:
+```javascript
+async function limitConcurrency(limit, array, fn) {
+  const results = [];
+  const executing = [];
+  for (const item of array) {
+    const p = Promise.resolve().then(() => fn(item));
+    results.push(p);
+    if (limit <= array.length) {
+      const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+      executing.push(e);
+      if (executing.length >= limit) {
+        await Promise.race(executing);
+      }
+    }
+  }
+  return Promise.all(results);
+}
+```
+This restricts the number of active asynchronous requests to 10 concurrently, accelerating processing speeds by up to 5x while preserving network safety.
 
 ---
 

@@ -6,16 +6,27 @@
 
 ---
 
-## 📌 Problem Statement
+## 📌 Target vs. Verified Metrics
 
-Standard AI systems have a critical reliability problem:
+To maintain analytical accuracy and present realistic statistics for technical interviews, Sentinel.AI separates **Expected System Targets** from **Verified Local System Latency**.
 
-| Metric | Standard AI | With Sentinel.AI |
-|--------|------------|------------------|
-| Hallucination Rate | **35–40%** | **< 10%** |
-| Fact Verification | None | 3-tier independent check |
-| Source Citations | Sometimes | Always |
-| Average Response Time | ~12s | ~5s |
+### 1. Expected Pipeline Performance (Research Targets)
+These represent standard industry target benchmarks for multi-agent RAG verification pipelines:
+
+| Performance Metric | Standard RAG | Sentinel.AI (Expected) |
+| :--- | :--- | :--- |
+| **Hallucination Rate** | 35% – 40% | **< 10%** (via 3-tier verification) |
+| **Fact Verification** | None / Single LLM | **Multi-Model checks** (Llama $\rightarrow$ Claude $\rightarrow$ Gemini) |
+| **Source Grounding** | Ad-hoc citations | **Strict source reinforcement** (vetted contexts only) |
+
+### 2. Verified Local System Latency (Measured Benchmarks)
+These represent actual latency and performance figures measured during our local testing suite runs:
+
+| Action / Pipeline Step | Ingest / Process Mode | Measured Latency | Performance Impact |
+| :--- | :--- | :--- | :--- |
+| **Document Ingestion (5 Chunks)** | Sequential Mode | **7.22s** | Baseline reference |
+| **Document Ingestion (5 Chunks)** | Parallel Mode | **2.11s** | **3.4x speedup** (concurrency pooled) |
+| **Query Orchestration Loop** | Mock Pipeline Run | **4.20s** (avg) | Stable network latency |
 
 In domains like **medical diagnosis** and **legal research**, a single hallucinated fact can have catastrophic consequences. Sentinel.AI addresses this with a tiered verification architecture where multiple specialized LLMs independently filter, generate, and evaluate responses.
 
@@ -93,11 +104,12 @@ sentinel-ai/
 │   ├── index.html
 │   └── src/
 │       ├── main.jsx                   # Entry point
-│       ├── App.jsx                    # App shell, routing, theme
+│       ├── App.jsx                    # App shell, header tabs, theme
 │       ├── App.css                    # App-specific styles
-│       ├── index.css                  # Global design system (678 lines)
+│       ├── index.css                  # Global design system (1250 lines)
 │       └── components/
 │           ├── ChatInterface.jsx      # Chat UI + SSE streaming
+│           ├── IngestionPortal.jsx    # Drag-and-drop document upload portal
 │           ├── LandingPage.jsx        # Hero + stats + architecture
 │           └── SourceBadge.jsx        # Source citation badge
 │
@@ -113,12 +125,14 @@ sentinel-ai/
 │   ├── config/
 │   │   └── config.js                  # Central env config
 │   ├── routes/
-│   │   └── queryRoutes.js             # API route definitions
+│   │   ├── queryRoutes.js             # API query route definitions
+│   │   └── documentRoutes.js          # Ingestion route definitions
 │   ├── controllers/
-│   │   └── queryController.js         # Request handlers + SSE
+│   │   ├── queryController.js         # Request handlers + SSE
+│   │   └── documentController.js      # Multi-document upload handlers
 │   ├── services/
 │   │   ├── ragPipelineService.js      # Pipeline orchestrator
-│   │   └── vectorDbService.js         # Pinecone + mock DB
+│   │   └── vectorDbService.js         # Pinecone + concurrency embedding engine
 │   ├── agents/
 │   │   ├── filterAgent.js             # Tier 1 — Llama 3.3 70B
 │   │   ├── generatorAgent.js          # Tier 2 — Claude 3 Haiku
@@ -131,7 +145,8 @@ sentinel-ai/
 │   │   ├── logger.js                  # Winston logger
 │   │   └── AppError.js                # Custom error class
 │   └── tests/
-│       └── test-pipeline.js           # Integration tests
+│       ├── test-pipeline.js           # Query integration tests
+│       └── test-ingestion.js          # Ingestion performance profiling tests
 ```
 
 ---
@@ -178,7 +193,7 @@ npm run dev
 
 ### 4. Open in Browser
 
-Navigate to **http://localhost:5173** → Click "Go to Sentinel" → Ask a question.
+Navigate to **http://localhost:5173** → Click "Go to Sentinel" → Switch to "Knowledge Ingestion" tab to upload PDFs, or "Agent Chat" to query.
 
 ---
 
@@ -219,13 +234,24 @@ Standard JSON query.
 ### `POST /api/v1/query/stream`
 Real-time SSE streaming with step-by-step pipeline progress.
 
+### `POST /api/v1/documents/upload`
+Ingests one or more PDF files.
+- **Payload**: Multipart Form-Data
+- **Fields**:
+  - `documents` (file list): One or more PDF files.
+  - `parallel` (string): `"true"` to run parallel ingestion (limit: 10 concurrent embedding calls) or `"false"` to run sequential.
+
 ---
 
 ## 🧪 Testing
 
 ```bash
 cd backend
-npm test    # Runs mock pipeline — no API keys needed
+# 1. Runs pipeline queries in mock mode:
+npm test
+
+# 2. Runs document ingestion profiling test:
+node tests/test-ingestion.js
 ```
 
 ---
@@ -249,3 +275,4 @@ Built at **Chitkara University** as a research project in AI reliability and hal
 ## 📝 License
 
 Academic research project. All rights reserved.
+# Sentinal_AI

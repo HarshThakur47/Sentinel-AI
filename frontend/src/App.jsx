@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Moon, Sun, ShieldCheck, Info, X } from 'lucide-react';
+import { Moon, Sun, ShieldCheck, Info, X, MessageSquare, Database } from 'lucide-react';
 import ChatInterface from './components/ChatInterface';
 import LandingPage from './components/LandingPage';
+import IngestionPortal from './components/IngestionPortal';
 
 function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -20,36 +21,58 @@ function App() {
     <div className="app-container">
       <header className="app-header">
         <div className="header-left">
-          <button 
-            className="icon-button" 
-            onClick={() => setShowInfoModal(true)}
-            title="Information & Privacy"
-          >
-            <Info size={20} />
-          </button>
-          
-          {currentView === 'chat' && (
-            <button 
-              className="back-button"
-              onClick={() => setCurrentView('landing')}
-            >
-              ← About Sentinel
-            </button>
-          )}
-        </div>
-        
-        <div className="header-center">
           <div 
             className="logo-container" 
             onClick={() => setCurrentView('landing')}
             style={{ cursor: 'pointer' }}
           >
-            <ShieldCheck size={28} className="shield-icon" />
+            <ShieldCheck size={26} className="shield-icon" />
             <h1>Sentinel.AI</h1>
           </div>
+          
+          <button 
+            className="icon-button" 
+            onClick={() => setShowInfoModal(true)}
+            title="Information & Privacy"
+            style={{ marginLeft: '1rem' }}
+          >
+            <Info size={18} />
+          </button>
+        </div>
+        
+        <div className="header-center">
+          {currentView !== 'landing' && (
+            <div className="header-tabs animate-fade-in">
+              <button 
+                className={`tab-button ${currentView === 'chat' ? 'active' : ''}`}
+                onClick={() => setCurrentView('chat')}
+                id="tab-chat"
+              >
+                <MessageSquare size={16} />
+                <span>Agent Chat</span>
+              </button>
+              <button 
+                className={`tab-button ${currentView === 'ingestion' ? 'active' : ''}`}
+                onClick={() => setCurrentView('ingestion')}
+                id="tab-ingestion"
+              >
+                <Database size={16} />
+                <span>Knowledge Ingestion</span>
+              </button>
+            </div>
+          )}
         </div>
         
         <div className="header-right">
+          {currentView !== 'landing' && (
+            <button 
+              className="back-button"
+              onClick={() => setCurrentView('landing')}
+              style={{ marginRight: '1rem' }}
+            >
+              ← About Sentinel
+            </button>
+          )}
           <button 
             className="theme-toggle" 
             onClick={() => setIsDarkMode(!isDarkMode)}
@@ -60,10 +83,14 @@ function App() {
       </header>
       
       <main className="main-content">
-        {currentView === 'landing' ? (
+        {currentView === 'landing' && (
           <LandingPage onEnter={() => setCurrentView('chat')} />
-        ) : (
+        )}
+        {currentView === 'chat' && (
           <ChatInterface />
+        )}
+        {currentView === 'ingestion' && (
+          <IngestionPortal />
         )}
       </main>
 
