@@ -74,7 +74,7 @@ const LandingPage = ({ onEnter }) => {
       </section>
 
       <section className="results-section text-center">
-        <h2>Measured Improvements Over Baseline</h2>
+        <h2>Expected System Target Benchmarks</h2>
         <div className="comparison-table-wrapper">
           <table className="comparison-table">
             <thead>
@@ -101,9 +101,9 @@ const LandingPage = ({ onEnter }) => {
                 <td className="text-success font-bold">Always</td>
               </tr>
               <tr>
-                <td>Response Time</td>
-                <td>12s</td>
-                <td className="text-success font-bold">5s</td>
+                <td>Expected Latency</td>
+                <td>~12s</td>
+                <td className="text-success font-bold">~5s</td>
               </tr>
             </tbody>
           </table>

@@ -217,32 +217,76 @@ async function retrieveDocuments(userQuery, topK = 5) {
 }
 
 /**
+ * Executes async tasks with limited concurrency.
+ * @param {number} limit - Max concurrent execution count.
+ * @param {Array} array - Input array of data.
+ * @param {Function} fn - Async worker function.
+ */
+async function limitConcurrency(limit, array, fn) {
+  const results = [];
+  const executing = [];
+  for (const item of array) {
+    const p = Promise.resolve().then(() => fn(item));
+    results.push(p);
+    if (limit <= array.length) {
+      const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+      executing.push(e);
+      if (executing.length >= limit) {
+        await Promise.race(executing);
+      }
+    }
+  }
+  return Promise.all(results);
+}
+
+/**
  * Upsert document chunks into Pinecone
  *
  * @param {string[]} chunks
  * @param {string} sourceFilename
+ * @param {boolean} [parallel=true]
  */
-async function upsertDocuments(chunks, sourceFilename) {
+async function upsertDocuments(chunks, sourceFilename, parallel = true) {
   if (!isPineconeConfigured) {
-    logger.warn('[VectorDB] Mock mode: skipping Pinecone upsert.');
+    logger.warn(`[VectorDB] Mock mode: skipping Pinecone upsert for ${sourceFilename} (${chunks.length} chunks).`);
     return;
   }
   
   const host = PINECONE_HOST || `https://${PINECONE_INDEX_NAME}-${PINECONE_ENVIRONMENT}.svc.pinecone.io`;
   
   const vectors = [];
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    const embedding = await generateEmbedding(chunk);
-    vectors.push({
-      id: uuidv4(),
-      values: embedding,
-      metadata: {
-        title: sourceFilename,
-        content: chunk,
-        pageNumber: i + 1, // rough approximation
-      }
+  
+  if (parallel) {
+    logger.info(`[VectorDB] Generating embeddings in PARALLEL (limit: 10) for ${chunks.length} chunks of ${sourceFilename}`);
+    const chunkItems = chunks.map((chunk, index) => ({ chunk, index }));
+    const results = await limitConcurrency(10, chunkItems, async (item) => {
+      const embedding = await generateEmbedding(item.chunk);
+      return {
+        id: uuidv4(),
+        values: embedding,
+        metadata: {
+          title: sourceFilename,
+          content: item.chunk,
+          pageNumber: item.index + 1,
+        }
+      };
     });
+    vectors.push(...results);
+  } else {
+    logger.info(`[VectorDB] Generating embeddings SEQUENTIALLY for ${chunks.length} chunks of ${sourceFilename}`);
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const embedding = await generateEmbedding(chunk);
+      vectors.push({
+        id: uuidv4(),
+        values: embedding,
+        metadata: {
+          title: sourceFilename,
+          content: chunk,
+          pageNumber: i + 1,
+        }
+      });
+    }
   }
   
   try {

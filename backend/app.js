@@ -17,32 +17,12 @@ const app = express();
 // ── Security Headers ────────────────────────────────────────────────────────
 app.use(helmet());
 
-// Provide an array of all acceptable origins
-const allowedOrigins = [
-  FRONTEND_URL,                               // The exact string from your config
-  'https://sentinel-ai-fawn-nine.vercel.app', // Your live Vercel frontend (no slash)
-  'https://sentinel-ai-fawn-nine.vercel.app/',// Your live Vercel frontend (with slash)
-  'http://localhost:5173',                    // Vite local development
-  'http://localhost:3000'                     // CRA local development
-];
-
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, or your Render health pings)
-    if (!origin) return callback(null, true);
-    
-    // Check if the incoming origin is in our allowed list
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('The CORS policy for this site does not allow access from the specified Origin.'));
-    }
-  },
+  origin:      FRONTEND_URL,
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  methods:     ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
-
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 

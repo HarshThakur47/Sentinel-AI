@@ -17,11 +17,12 @@ frontend/
 ├── vite.config.js              # Vite configuration
 └── src/
     ├── main.jsx                # React DOM root mount
-    ├── App.jsx                 # App shell — header, routing, theme, info modal
+    ├── App.jsx                 # App shell — header tabs, views, theme, info modal
     ├── App.css                 # App-specific overrides
-    ├── index.css               # Global design system (759 lines)
+    ├── index.css               # Global design system (1250 lines)
     └── components/
         ├── ChatInterface.jsx   # Chat UI + SSE streaming + pipeline tracker
+        ├── IngestionPortal.jsx # PDF upload, settings, and live log monitor
         ├── LandingPage.jsx     # Landing page — hero, stats, architecture
         └── SourceBadge.jsx     # Source citation badge component
 ```
@@ -36,14 +37,14 @@ frontend/
 | State | Type | Description |
 |-------|------|-------------|
 | `isDarkMode` | `boolean` | Light/dark theme toggle |
-| `currentView` | `'landing' \| 'chat'` | Active page |
+| `currentView` | `'landing' \| 'chat' \| 'ingestion'` | Active page view |
 | `showInfoModal` | `boolean` | Privacy/about modal visibility |
 
 **Features:**
-- Sticky header with logo, info button, nav, and theme toggle
-- Conditional rendering: `LandingPage` ↔ `ChatInterface`
-- Dark mode via `body.dark` CSS class
-- Info/Privacy modal with contact link
+- Sticky header containing responsive Sentinel.AI logo and info controls.
+- Segmented navigation control tabs (Chat vs. Ingestion) visible in active workspaces.
+- Stethoscopic theme manager with automatic local storage class injections.
+- Info/Privacy modal overlay.
 
 ---
 
@@ -107,6 +108,27 @@ Each step has 3 visual states:
 - **Pending** — Dimmed, grey icon
 - **Active** — Red with pulse animation
 - **Complete** — Green with checkmark
+
+---
+
+### `IngestionPortal.jsx` — PDF Document Ingestion
+
+Provides the UI dashboard for adding documents to the database.
+
+**State:**
+| State | Type | Description |
+|-------|------|-------------|
+| `selectedFiles` | `Array<File>` | Files currently selected and queued for upload |
+| `isParallel` | `boolean` | Parallel vs sequential toggle value |
+| `isUploading` | `boolean` | Ingestion operation status indicator |
+| `logs` | `Array<Log>` | Time-stamped log messages mapping ingestion steps |
+| `uploadResults` | `Object \| null` | Summary analytics on process duration and chunk size |
+
+**Features:**
+- Interactive HTML drag-and-drop file target.
+- Concurrent upload via multipart form-data.
+- Sequential/Parallel execution selector.
+- Live pipeline monitor terminal.
 
 ---
 
